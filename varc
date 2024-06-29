@@ -1,0 +1,174 @@
+#!/bin/bash
+cd /Downloads/test
+
+fileHandler(){
+for f in *.mp4 *.avi *.mov; do
+
+ls | grep -qw "${f%.*}".log
+if [ [ $? -eq 0 ] ; then
+  echo "ok"
+  touch "${f%.*}".log
+else
+  echo "not ok"
+fi
+done
+done
+}
+
+formatCheck(){
+info=$(VHXEncoder -v 32 -i ${f} 2>&1- )
+dimension=$(echo $info | egrep -o '[0-9]{3,4}x[0-9]{3,4}' )
+progressive=$(echo $info | grep -c progressive )
+hevc=$(echo $info | grep -c hevc )
+h264=$(echo $info | grep -c h264 )
+mpeg2=$(echo $info | grep -c mpeg2video )
+m10=$(echo $info | grep -c "Main 10" )
+}
+
+
+for f in *.mp4 *.avi *.mov; do
+echo '########f is equal' "${f%.*}" '######'
+for n in *.log; do
+echo '########F is equal' "${f%.*}" '& N is equal ' "${n%.*}" '######'
+if [ "${n%.*}" != "${f%.*}" ]
+then
+echo '********' "${f}" 'is noot equal ' "${n}"
+touch "${f%.*}".log
+
+else
+echo '********' "${f}" 'is equal ' "${n}"
+fi
+done
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+label1(){
+echo 'on siba'
+VHX-RECORDER -v quiet -i rtmp://192.168.113.61/t1/test -c copy -f flv rtmp://192.168.113.61/live/x & P1=$!
+kill -HUP $PID
+wait $P1
+echo 1 > /Downloads/loop
+label2 & label3
+}
+
+
+
+
+checkname(){
+echo 'check'
+for %f in (*.mp4 *.avi *.mov) do 
+
+#!/bin/bash
+cd /Downloads/test
+for n in *.inf; do echo "${n%.*}";
+if [ ${n%.*} =! ${f%.*} ]
+echo ${f%.*} "is not equal"
+else echo ${f%.*} "is equal" ${f%.*}
+done
+
+
+
+
+
+
+
+
+
+
+ffmpeg -i "%f" -c:v libx264 -c:a aac "%~nf_new.mkv"
+VHX-RECORDER -v quiet -i rtmp://192.168.113.61/t1/test -c copy -f flv rtmp://192.168.113.61/live/x & P1=$!
+kill -HUP $PID
+wait $P1
+echo 1 > /Downloads/loop
+label2 & label3
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+label2(){
+echo 'on loop'
+loop=1
+while [ $loop == 1 ]; do
+a=$(date +%s%N)
+VHX-RECORDER -v quiet -i rtmp://192.168.113.61/t2/test -c copy -f flv rtmp://192.168.113.61/live/y & P2=$!
+echo 'in label2 P2 is' $P2
+echo $P2 > /Downloads/PID
+wait $P2
+sleep $c
+b=$(date +%s%N)
+z=$((b-a))
+echo 'in label2 a is' $a
+echo 'in label2 b is' $b
+echo 'in label2 z is' $z 
+z=0${z:0: -9}
+echo 'in label2 z2 is' $z
+if [ $z -gt 10 ]
+then
+c=0
+echo 'c reseted'
+fi
+if [ $c -gt 7 ]
+then
+c=7
+else
+((c+=1))
+echo 'c = ' $c
+fi
+
+loop=$(</Downloads/loop)
+done
+echo 'exit of label2'
+}
+
+label3(){
+info=$(VHX-RECORDER -hide_banner -v 32 -f flv -i rtmp://192.168.113.61/t1/test 2>&1- )
+on=$(echo $info | grep -c 'stream not found')
+echo 'i am label3'
+}
+
+label1
+while true; do
+sleep 10
+label3
+if [ $on == 0 ]
+then
+PID=$(</Downloads/PID)
+echo 'in ROOT P2 is' $PID
+echo 0 > /Downloads/loop
+label1
+fi
+done
+
+
+
+
+
