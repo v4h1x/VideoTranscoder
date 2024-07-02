@@ -1,10 +1,14 @@
 #!/bin/bash
-cd /Downloads/test
+
+FL="/Downloads/test"
+LL="/Download/log"
 
 fileHandler(){
-for f in *.mp4 *.avi *.mov; do
+cd $FL
+for f in *.avi *.mov *.mp4 */*.avi */*.mov */*.mp4
+do
 
-ls | grep -qw "${f%.*}".log
+ls $LL | grep -qw "${f%.*}".log
 if [ [ $? -eq 0 ] ; then
   echo "ok"
   touch "${f%.*}".log
@@ -12,51 +16,26 @@ else
   echo "not ok"
 fi
 done
-done
+}
+
+scaleSelector(){
+uhd=$(echo $f | grep -c 2160p )
+fhd=$(echo $f | grep -c 1080p )
+hd=$(echo $f | grep -c 720p )
+if $uhd != 0 ; then
+scale="scale_npp=w=3840:h=2160:interp_algo=16"
+
 }
 
 formatCheck(){
 info=$(VHXEncoder -v 32 -i ${f} 2>&1- )
-dimension=$(echo $info | egrep -o '[0-9]{3,4}x[0-9]{3,4}' )
+dimension=$(echo $info | grep -o '[0-9]{3,4}x[0-9]{3,4}' )
 progressive=$(echo $info | grep -c progressive )
 hevc=$(echo $info | grep -c hevc )
 h264=$(echo $info | grep -c h264 )
 mpeg2=$(echo $info | grep -c mpeg2video )
 m10=$(echo $info | grep -c "Main 10" )
 }
-
-
-for f in *.mp4 *.avi *.mov; do
-echo '########f is equal' "${f%.*}" '######'
-for n in *.log; do
-echo '########F is equal' "${f%.*}" '& N is equal ' "${n%.*}" '######'
-if [ "${n%.*}" != "${f%.*}" ]
-then
-echo '********' "${f}" 'is noot equal ' "${n}"
-touch "${f%.*}".log
-
-else
-echo '********' "${f}" 'is equal ' "${n}"
-fi
-done
-done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
