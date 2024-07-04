@@ -1,35 +1,38 @@
 #!/bin/bash
 
-FL="/Downloads/test"
-LL="/Download/log"
+IN="/Downloads/in"
+OUT="/Downloads/out"
+LL="/Downloads/log"
+GPU=0
 
 fileHandler(){
-cd $FL
-for f in *.avi *.mov *.mp4 */*.avi */*.mov */*.mp4
-do
-
-ls $LL | grep -qw "${f%.*}".log
-if [ [ $? -eq 0 ] ; then
-  echo "ok"
-  touch "${f%.*}".log
+if [[ ! $(find "$f" -mmin 0.2) ]]; then
+case "${f: -4}" in
+	".mp4"|".mkv"|".mpg"|".avi"|".wmv")
+		fix=$(echo ${f%.*}.log | sed s/\\//./g)
+		fixLoc=$(echo "${LL}/${fix}")
+		ls $LL | grep -qwE "(^|\s)${fix%}"
+		if [ $? -ne 0 ] ; then
+		access=1
+		else
+		access=0
+		fi
+		;;
+	*)
+		access=0
+		;;
+esac
 else
-  echo "not ok"
+access=0
 fi
-done
-}
-
-scaleSelector(){
-uhd=$(echo $f | grep -c 2160p )
-fhd=$(echo $f | grep -c 1080p )
-hd=$(echo $f | grep -c 720p )
-if $uhd != 0 ; then
-scale="scale_npp=w=3840:h=2160:interp_algo=16"
-
 }
 
 formatCheck(){
-info=$(VHXEncoder -v 32 -i ${f} 2>&1- )
-dimension=$(echo $info | grep -o '[0-9]{3,4}x[0-9]{3,4}' )
+info=$(VHXTranscoder -v 32 -i ${f} 2>&1- )
+dimension=$(echo $info | egrep -o '[0-9]{3,4}x[0-9]{3,4}' )
+
+width=$(echo $dimension | egrep -o 'x[0-9]{3,4}' )
+width=${width//x}
 progressive=$(echo $info | grep -c progressive )
 hevc=$(echo $info | grep -c hevc )
 h264=$(echo $info | grep -c h264 )
@@ -38,116 +41,60 @@ m10=$(echo $info | grep -c "Main 10" )
 }
 
 
-
-label1(){
-echo 'on siba'
-VHX-RECORDER -v quiet -i rtmp://192.168.113.61/t1/test -c copy -f flv rtmp://192.168.113.61/live/x & P1=$!
-kill -HUP $PID
-wait $P1
-echo 1 > /Downloads/loop
-label2 & label3
-}
-
-
-
-
-checkname(){
-echo 'check'
-for %f in (*.mp4 *.avi *.mov) do 
-
-#!/bin/bash
-cd /Downloads/test
-for n in *.inf; do echo "${n%.*}";
-if [ ${n%.*} =! ${f%.*} ]
-echo ${f%.*} "is not equal"
-else echo ${f%.*} "is equal" ${f%.*}
-done
-
-
-
-
-
-
-
-
-
-
-ffmpeg -i "%f" -c:v libx264 -c:a aac "%~nf_new.mkv"
-VHX-RECORDER -v quiet -i rtmp://192.168.113.61/t1/test -c copy -f flv rtmp://192.168.113.61/live/x & P1=$!
-kill -HUP $PID
-wait $P1
-echo 1 > /Downloads/loop
-label2 & label3
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-label2(){
-echo 'on loop'
-loop=1
-while [ $loop == 1 ]; do
-a=$(date +%s%N)
-VHX-RECORDER -v quiet -i rtmp://192.168.113.61/t2/test -c copy -f flv rtmp://192.168.113.61/live/y & P2=$!
-echo 'in label2 P2 is' $P2
-echo $P2 > /Downloads/PID
-wait $P2
-sleep $c
-b=$(date +%s%N)
-z=$((b-a))
-echo 'in label2 a is' $a
-echo 'in label2 b is' $b
-echo 'in label2 z is' $z 
-z=0${z:0: -9}
-echo 'in label2 z2 is' $z
-if [ $z -gt 10 ]
-then
-c=0
-echo 'c reseted'
-fi
-if [ $c -gt 7 ]
-then
-c=7
-else
-((c+=1))
-echo 'c = ' $c
+scaleSelector(){
+scale="scale_npp=w=1920:h=1080:interp_algo=16" && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080" && yadif="" && fps=""
+if [[ $width -ge 1800 ]]; then
+scale="scale_npp=w=3840:h=2160:interp_algo=16" && bitrateVideo=40M && bitrateAudio=320K && outd="3840x2160"
+elif [[ $width -le 800 ]] ; then
+scale="scale_npp=w=1280:h=720:interp_algo=16" bitrateVideo=10M && bitrateAudio=160K && outd="1280x720"
 fi
 
-loop=$(</Downloads/loop)
-done
-echo 'exit of label2'
+uhd=$(echo $f | grep -c 2160p )
+fhd=$(echo $f | grep -c 1080p )
+hd=$(echo $f | grep -c 720p )
+low=$(echo $f | grep -c lowres )
+if [[ $uhd -ne 0 ]]; then
+scale="scale_npp=w=3840:h=2160:interp_algo=16" && bitrateVideo=40M && bitrateAudio=320K && outd="3840x2160"
+elif [[ $fhd -ne 0 ]] ; then
+scale="scale_npp=w=1920:h=1080:interp_algo=16" && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080"
+elif [[ $hd -ne 0 ]] ; then
+scale="scale_npp=w=1280:h=720:interp_algo=16" && bitrateVideo=10M && bitrateAudio=160K && outd="1280x720"
+elif [[ $low -ne 0 ]] ; then
+scale="scale_npp=w=512:h=288:interp_algo=16" && bitrateVideo=500K && bitrateAudio=32K && outd="512x288"
+if [[ $progressive -ne 0 ]]; then
+fps="fps=fps=25,"
+fi
+fi
+
+if [[ $progressive -eq 0 ]]; then
+yadif="yadif_cuda=1:0:0,"
+if [[ $low != 0 ]] ; then
+yadif="yadif_cuda=0:0:0,"
+fi
+fi
 }
 
-label3(){
-info=$(VHX-RECORDER -hide_banner -v 32 -f flv -i rtmp://192.168.113.61/t1/test 2>&1- )
-on=$(echo $info | grep -c 'stream not found')
-echo 'i am label3'
+loger(){
+touch $fixLoc
+echo -ne "filename is " ${f} "\n" > $fixLoc
+echo -ne "input Dimension is " ${dimension} "\n" >> $fixLoc
+echo -ne "output Dimension is " ${outd} "\n" >> $fixLoc
 }
 
-label1
-while true; do
-sleep 10
-label3
-if [ $on == 0 ]
-then
-PID=$(</Downloads/PID)
-echo 'in ROOT P2 is' $PID
-echo 0 > /Downloads/loop
-label1
+transcode(){
+VHXTranscoder -y -v 32 -i ${f} -vf ${fps}format=pix_fmts=yuv420p,hwupload_cuda=device=${GPU},${yadif}${scale},sharpen_npp -map 0:v -map 0:a:0 -map_metadata -1 -c:v h264_nvenc -gpu ${GPU} -preset:v 18 -rc 2 -cbr 1 -g 100 -temporal-aq 1 -profile:v 2 -bf:v 4 -b_ref_mode 2 -strict_gop 1 -b:v ${bitrateVideo} -c:a libfdk_aac -b:a ${bitrateAudio} -sn -f mp4 ${OUT}/"${fix%.*}".mp4
+}
+
+#####PROGRESS##SECTION#####
+
+cd $IN
+for f in `ls -ctr *.* */*.*`
+do
+fileHandler
+if [[ $access -eq 1 ]]; then
+formatCheck
+scaleSelector
+loger
+transcode
 fi
 done
-
-
-
-
-
