@@ -30,7 +30,6 @@ fi
 formatCheck(){
 info=$(VHXTranscoder -v 32 -i ${f} 2>&1- )
 dimension=$(echo $info | egrep -o '[0-9]{3,4}x[0-9]{3,4}' )
-
 width=$(echo $dimension | egrep -o 'x[0-9]{3,4}' )
 width=${width//x}
 progressive=$(echo $info | grep -c progressive )
@@ -39,7 +38,6 @@ h264=$(echo $info | grep -c h264 )
 mpeg2=$(echo $info | grep -c mpeg2video )
 m10=$(echo $info | grep -c "Main 10" )
 }
-
 
 scaleSelector(){
 scale="scale_npp=w=1920:h=1080:interp_algo=16" && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080" && yadif="" && fps=""
