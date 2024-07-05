@@ -40,11 +40,18 @@ m10=$(echo $info | grep -c "Main 10" )
 }
 
 scaleSelector(){
-scale="scale_npp=w=1920:h=1080:interp_algo=16" && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080" && yadif="" && fps=""
+scale="scale_npp=w=1920:h=1080:interp_algo=16," && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080" && fps="" && sharpen="sharpen_npp"
+
+if [[ $progressive -eq 0 ]]; then
+yadif="yadif_cuda=1:0:0,"
+else
+yadif=""
+fi
+
 if [[ $width -ge 1800 ]]; then
-scale="scale_npp=w=3840:h=2160:interp_algo=16" && bitrateVideo=40M && bitrateAudio=320K && outd="3840x2160"
+scale="scale_npp=w=3840:h=2160:interp_algo=16," && bitrateVideo=40M && bitrateAudio=320K && outd="3840x2160"
 elif [[ $width -le 800 ]] ; then
-scale="scale_npp=w=1280:h=720:interp_algo=16" bitrateVideo=10M && bitrateAudio=160K && outd="1280x720"
+scale="scale_npp=w=1280:h=720:interp_algo=16," bitrateVideo=10M && bitrateAudio=160K && outd="1280x720"
 fi
 
 uhd=$(echo $f | grep -c 2160p )
@@ -52,21 +59,16 @@ fhd=$(echo $f | grep -c 1080p )
 hd=$(echo $f | grep -c 720p )
 low=$(echo $f | grep -c lowres )
 if [[ $uhd -ne 0 ]]; then
-scale="scale_npp=w=3840:h=2160:interp_algo=16" && bitrateVideo=40M && bitrateAudio=320K && outd="3840x2160"
+scale="scale_npp=w=3840:h=2160:interp_algo=16," && bitrateVideo=40M && bitrateAudio=320K && outd="3840x2160"
 elif [[ $fhd -ne 0 ]] ; then
-scale="scale_npp=w=1920:h=1080:interp_algo=16" && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080"
+scale="scale_npp=w=1920:h=1080:interp_algo=16," && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080"
 elif [[ $hd -ne 0 ]] ; then
-scale="scale_npp=w=1280:h=720:interp_algo=16" && bitrateVideo=10M && bitrateAudio=160K && outd="1280x720"
+scale="scale_npp=w=1280:h=720:interp_algo=16," && bitrateVideo=10M && bitrateAudio=160K && outd="1280x720"
 elif [[ $low -ne 0 ]] ; then
-scale="scale_npp=w=512:h=288:interp_algo=16" && bitrateVideo=500K && bitrateAudio=32K && outd="512x288"
+scale="scale_npp=w=640:h=480:interp_algo=16" && bitrateVideo=500K && bitrateAudio=32K && outd="640x480" && sharpen=""
 if [[ $progressive -ne 0 ]]; then
 fps="fps=fps=25,"
-fi
-fi
-
-if [[ $progressive -eq 0 ]]; then
-yadif="yadif_cuda=1:0:0,"
-if [[ $low != 0 ]] ; then
+else
 yadif="yadif_cuda=0:0:0,"
 fi
 fi
@@ -77,10 +79,11 @@ touch $fixLoc
 echo -ne "filename is " ${f} "\n" > $fixLoc
 echo -ne "input Dimension is " ${dimension} "\n" >> $fixLoc
 echo -ne "output Dimension is " ${outd} "\n" >> $fixLoc
+echo -ne "Transcoded at: " `date` "\n" >> $fixLoc
 }
 
 transcode(){
-VHXTranscoder -y -v 32 -i ${f} -vf ${fps}format=pix_fmts=yuv420p,hwupload_cuda=device=${GPU},${yadif}${scale},sharpen_npp -map 0:v -map 0:a:0 -map_metadata -1 -c:v h264_nvenc -gpu ${GPU} -preset:v 18 -rc 2 -cbr 1 -g 100 -temporal-aq 1 -profile:v 2 -bf:v 4 -b_ref_mode 2 -strict_gop 1 -b:v ${bitrateVideo} -c:a libfdk_aac -b:a ${bitrateAudio} -sn -f mp4 ${OUT}/"${fix%.*}".mp4
+VHXTranscoder -y -v 32 -i ${f} -vf ${fps}format=pix_fmts=yuv420p,hwupload_cuda=device=${GPU},${yadif}${scale}${sharpen},colorspace_cuda=mpeg -map 0:v -map 0:a:0 -map_metadata -1 -c:v h264_nvenc -gpu ${GPU} -preset:v slow -rc 2 -cbr 1 -g 100 -temporal-aq 1 -profile:v 2 -bf:v 4 -b_ref_mode 2 -strict_gop 1 -b:v ${bitrateVideo} -c:a libfdk_aac -b:a ${bitrateAudio} -sn -f mp4 ${OUT}/"${fix%.*}".mp4
 }
 
 #####PROGRESS##SECTION#####
