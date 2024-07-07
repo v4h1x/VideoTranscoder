@@ -43,7 +43,7 @@ scaleSelector(){
 scale="scale_npp=w=1920:h=1080:interp_algo=16," && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080" && fps="" && sharpen="sharpen_npp"
 
 if [[ $progressive -eq 0 ]]; then
-yadif="yadif_cuda=1:0:0,"
+yadif="bwdif_cuda=1:0:0,"
 else
 yadif=""
 fi
@@ -69,7 +69,7 @@ scale="scale_npp=w=640:h=480:interp_algo=16" && bitrateVideo=500K && bitrateAudi
 if [[ $progressive -ne 0 ]]; then
 fps="fps=fps=25,"
 else
-yadif="yadif_cuda=0:0:0,"
+yadif="bwdif_cuda=0:0:0,"
 fi
 fi
 }
