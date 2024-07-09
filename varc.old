@@ -1,14 +1,15 @@
 #!/bin/bash
 
-IN="/srv/dev-disk-by-uuid-bdac1148-09ed-4802-a41b-d01018caf11a/ArchiveVideoTranscoder/INPUT"
-OUT="/srv/dev-disk-by-uuid-bdac1148-09ed-4802-a41b-d01018caf11a/ArchiveVideoTranscoder/OUTPUT"
-LL="/srv/dev-disk-by-uuid-bdac1148-09ed-4802-a41b-d01018caf11a/ArchiveVideoTranscoder/LOG"
+IN="/Downloads/in"
+OUT="/Downloads/out"
+LL="/Downloads/log"
+GPU=0
 
 fileHandler(){
-if [[ ! $(find "$file" -mmin 0.2) ]]; then
-case "${file: -4}" in
+if [[ ! $(find "$f" -mmin 0.2) ]]; then
+case "${f: -4}" in
 	".mp4"|".mkv"|".mpg"|".avi"|".wmv"|".mxf")
-		fix=$(echo "${file%.*}".log | sed s/\\//./g)
+		fix=$(echo ${f%.*}.log | sed s/\\//./g)
 		fixLoc=$(echo "${LL}/${fix}")
 		ls $LL | grep -qwE "(^|\s)${fix%}"
 		if [ $? -ne 0 ] ; then
@@ -27,7 +28,7 @@ fi
 }
 
 formatCheck(){
-info=$(VHXEncoder -v 32 -i "$file" 2>&1- )
+info=$(VHXTranscoder -v 32 -i ${f} 2>&1- )
 dimension=$(echo $info | egrep -o '[0-9]{3,4}x[0-9]{3,4}' )
 width=$(echo $dimension | egrep -o 'x[0-9]{3,4}' )
 width=${width//x}
@@ -39,7 +40,7 @@ m10=$(echo $info | grep -c "Main 10" )
 }
 
 scaleSelector(){
-scale="" && bitrateVideo=20M && bitrateAudio=256K && outd=$(echo $dimension) && fps="" && sharpen="sharpen_npp"
+scale="scale_npp=w=1920:h=1080:interp_algo=16," && bitrateVideo=20M && bitrateAudio=256K && outd="1920x1080" && fps="" && sharpen="sharpen_npp"
 
 if [[ $progressive -eq 0 ]]; then
 yadif="bwdif_cuda=1:0:0,"
@@ -47,10 +48,10 @@ else
 yadif=""
 fi
 
-if [[ $width -ge 1400 ]]; then
-bitrateVideo=40M && bitrateAudio=320K
+if [[ $width -ge 1800 ]]; then
+scale="scale_npp=w=3840:h=2160:interp_algo=16," && bitrateVideo=40M && bitrateAudio=320K && outd="3840x2160"
 elif [[ $width -le 800 ]] ; then
-bitrateVideo=10M && bitrateAudio=160K
+scale="scale_npp=w=1280:h=720:interp_algo=16," bitrateVideo=10M && bitrateAudio=160K && outd="1280x720"
 fi
 
 uhd=$(echo $f | grep -c 2160p )
@@ -71,37 +72,24 @@ else
 yadif="bwdif_cuda=0:0:0,"
 fi
 fi
-if [[ $hevc -ne 0 ]]; then
-yadif=""
-fi
 }
 
 loger(){
-touch "$fixLoc"
-echo -ne "filename is " "${file}" "\n" > "$fixLoc"
-echo -ne "input Dimension is " ${dimension} "\n" >> "$fixLoc"
-echo -ne "output Dimension is " ${outd} "\n" >> "$fixLoc"
-echo -ne "Transcoded at: " `date` "\n" >> "$fixLoc"
+touch $fixLoc
+echo -ne "filename is " ${f} "\n" > $fixLoc
+echo -ne "input Dimension is " ${dimension} "\n" >> $fixLoc
+echo -ne "output Dimension is " ${outd} "\n" >> $fixLoc
+echo -ne "Transcoded at: " `date` "\n" >> $fixLoc
 }
 
 transcode(){
-VHXEncoder -y -v quiet -i "$file" -vf ${fps}format=pix_fmts=yuv420p,hwupload_cuda=device=${GPU},${yadif}${scale}${sharpen},colorspace_cuda=mpeg -map 0:v -map 0:a:0 -map_metadata -1 -c:v h264_nvenc -gpu ${GPU} -preset:v 1 -rc 2 -cbr 1 -g 100 -temporal-aq 1 -profile:v 2 -bf:v 4 -b_ref_mode 2 -strict_gop 1 -b:v ${bitrateVideo} -c:a libfdk_aac -b:a ${bitrateAudio} -sn -f mp4 ${OUT}/"${fix%.*}".mp4
+VHXTranscoder -y -v 32 -i ${f} -vf ${fps}format=pix_fmts=yuv420p,hwupload_cuda=device=${GPU},${yadif}${scale}${sharpen},colorspace_cuda=mpeg -map 0:v -map 0:a:0 -map_metadata -1 -c:v h264_nvenc -gpu ${GPU} -preset:v slow -rc 2 -cbr 1 -g 100 -temporal-aq 1 -profile:v 2 -bf:v 4 -b_ref_mode 2 -strict_gop 1 -b:v ${bitrateVideo} -c:a libfdk_aac -b:a ${bitrateAudio} -sn -f mp4 ${OUT}/"${fix%.*}".mp4
 }
 
 #####PROGRESS##SECTION#####
 
 cd $IN
-
-lines="$(ls -ctr1 *.* */*.*)"
-
-declare -a theArray
-
-while read -r file
-do
-    theArray+=("$file")            
-done <<< "$lines"
-
-for file in "${theArray[@]}"
+for f in `ls -ctr *.* */*.*`
 do
 fileHandler
 if [[ $access -eq 1 ]]; then
@@ -110,5 +98,4 @@ scaleSelector
 loger
 transcode
 fi
-
 done
